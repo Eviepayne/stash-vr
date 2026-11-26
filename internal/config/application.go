@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -10,6 +12,7 @@ import (
 const (
 	envKeyListenAddress      = "LISTEN_ADDRESS"
 	envKeyStashGraphQLUrl    = "STASH_GRAPHQL_URL"
+	envKeyStashPublicUrl     = "STASH_PUBLIC_URL"
 	envKeyStashApiKey        = "STASH_API_KEY"
 	envKeyFavoriteTag        = "FAVORITE_TAG"
 	envKeyLogLevel           = "LOG_LEVEL"
@@ -25,6 +28,7 @@ const (
 type ApplicationConfig struct {
 	ListenAddress      string
 	StashGraphQLUrl    string
+	StashPublicUrl     string
 	StashApiKey        string
 	FavoriteTag        string
 	LogLevel           string
@@ -45,6 +49,9 @@ func Init() {
 
 	pflag.String(envKeyStashGraphQLUrl, "http://localhost:9999/graphql", "Url to Stash graphql")
 	_ = viper.BindPFlag(envKeyStashGraphQLUrl, pflag.Lookup(envKeyStashGraphQLUrl))
+
+	pflag.String(envKeyStashPublicUrl, "", "Public Stash origin (scheme, host and optional port) for client-facing URLs")
+	_ = viper.BindPFlag(envKeyStashPublicUrl, pflag.Lookup(envKeyStashPublicUrl))
 
 	pflag.String(envKeyStashApiKey, "", "Stash API key")
 	_ = viper.BindPFlag(envKeyStashApiKey, pflag.Lookup(envKeyStashApiKey))
@@ -90,6 +97,7 @@ func Init() {
 
 	applicationConfig.ListenAddress = viper.GetString(envKeyListenAddress)
 	applicationConfig.StashGraphQLUrl = viper.GetString(envKeyStashGraphQLUrl)
+	applicationConfig.StashPublicUrl = viper.GetString(envKeyStashPublicUrl)
 	applicationConfig.StashApiKey = viper.GetString(envKeyStashApiKey)
 	applicationConfig.FavoriteTag = viper.GetString(envKeyFavoriteTag)
 	applicationConfig.LogLevel = strings.ToLower(viper.GetString(envKeyLogLevel))
@@ -109,7 +117,28 @@ func Application() ApplicationConfig {
 
 func (a ApplicationConfig) Redacted() ApplicationConfig {
 	a.StashGraphQLUrl = Redacted(a.StashGraphQLUrl)
+	a.StashPublicUrl = Redacted(a.StashPublicUrl)
 	a.StashApiKey = Redacted(a.StashApiKey)
 	a.ConfigPath = Redacted(a.ConfigPath)
 	return a
+}
+
+// Validate checks the optional split between server and client Stash addresses.
+func (a ApplicationConfig) Validate() error {
+	if a.StashPublicUrl == "" {
+		return nil
+	}
+	for name, value := range map[string]string{
+		envKeyStashPublicUrl:  a.StashPublicUrl,
+		envKeyStashGraphQLUrl: a.StashGraphQLUrl,
+	} {
+		u, err := url.Parse(value)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+			return fmt.Errorf("%s must be an absolute HTTP(S) URL without credentials, query or fragment", name)
+		}
+		if name == envKeyStashPublicUrl && u.Path != "" && u.Path != "/" {
+			return fmt.Errorf("%s must contain only scheme, host and optional port; resource paths are preserved", name)
+		}
+	}
+	return nil
 }
