@@ -85,12 +85,12 @@ func buildVideoData(ctx context.Context, vd *library.VideoData, baseUrl string) 
 		if vd.SceneParts.Interactive && vd.SceneParts.Paths.Interactive_heatmap != nil {
 			dto.ThumbnailImage = util.Ptr(heatmap.GetCoverUrl(baseUrl, videoId))
 		} else {
-			dto.ThumbnailImage = util.Ptr(stash.ApiKeyed(*vd.SceneParts.Paths.Screenshot))
+			dto.ThumbnailImage = util.Ptr(stash.ApiKeyed(stash.PublicURL(*vd.SceneParts.Paths.Screenshot)))
 		}
 	}
 
 	if vd.SceneParts.Paths.Preview != nil {
-		dto.ThumbnailVideo = util.Ptr(stash.ApiKeyed(*vd.SceneParts.Paths.Preview))
+		dto.ThumbnailVideo = util.Ptr(stash.ApiKeyed(stash.PublicURL(*vd.SceneParts.Paths.Preview)))
 	}
 
 	if vd.SceneParts.Date != nil {
@@ -140,7 +140,7 @@ func setSubtitles(vd *library.VideoData, dto *videoDataDto) {
 		dto.Subtitles = append(dto.Subtitles, subtitleDto{
 			Name:     fmt.Sprintf("%s.%s", c.Language_code, c.Caption_type),
 			Language: c.Language_code,
-			Url:      stash.ApiKeyed(fmt.Sprintf("%s?lang=%s&type=%s", *vd.SceneParts.Paths.Caption, c.Language_code, c.Caption_type)),
+			Url:      stash.ApiKeyed(stash.PublicURL(fmt.Sprintf("%s?lang=%s&type=%s", *vd.SceneParts.Paths.Caption, c.Language_code, c.Caption_type))),
 		})
 	}
 }
@@ -160,7 +160,7 @@ func setScripts(vd *library.VideoData, dto *videoDataDto) {
 	}
 	dto.Scripts = append(dto.Scripts, scriptDto{
 		Name: "Script-" + vd.Title(),
-		Url:  stash.ApiKeyed(*vd.SceneParts.Paths.Funscript),
+		Url:  stash.ApiKeyed(stash.PublicURL(*vd.SceneParts.Paths.Funscript)),
 	})
 }
 
@@ -215,7 +215,7 @@ func setMediaSources(vd *library.VideoData, dto *videoDataDto) {
 		for _, s := range stream.Sources {
 			vs := sourceDto{
 				Resolution: s.Resolution,
-				Url:        s.Url,
+				Url:        stash.PublicURL(s.Url),
 			}
 			e.Sources = append(e.Sources, vs)
 		}
