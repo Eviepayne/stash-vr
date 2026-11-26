@@ -64,7 +64,7 @@ func sampleSceneCoverUrl(ctx context.Context, stashClient graphql.Client) (strin
 	if err != nil {
 		return "", err
 	}
-	return stash.ApiKeyed(*resp.FindScenes.Scenes[0].Paths.Screenshot), nil
+	return stash.ApiKeyed(stash.PublicURL(*resp.FindScenes.Scenes[0].Paths.Screenshot)), nil
 }
 
 func stashFilters(ctx context.Context, stashClient graphql.Client) ([]filterData, error) {
