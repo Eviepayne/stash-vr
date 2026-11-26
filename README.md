@@ -53,8 +53,23 @@ Example: Connect to Stash running on stash-host:9999 with api key XXX and set St
 * `STASH_GRAPHQL_URL`
   * **Required**
   * Url to your Stash graphql - something like `http://<stash.host>:<9999>/graphql`.
+* `STASH_PUBLIC_URL`
+  * Optional public Stash origin (scheme, hostname and optional port), e.g. `https://domain.com`.
+  * Use this when Stash-VR connects to Stash through an internal address but clients need a different address or HTTPS.
+  * Client-facing streams, thumbnails, previews, scripts and subtitles use this origin. Resource paths and query parameters are preserved, so both addresses must serve Stash at the same path prefix. Do not include `/graphql` or another path in this setting.
+  * GraphQL requests continue to use `STASH_GRAPHQL_URL`. Server-side image fetches for heatmap covers use that URL's origin.
+  * When unset, URLs returned by Stash are used unchanged.
 * `STASH_API_KEY`
   * Api key to your Stash if it's using authentication, otherwise not required.
+
+For example, use HTTP internally and HTTPS for LAN clients:
+
+```sh
+STASH_GRAPHQL_URL=http://domain.com/graphql
+STASH_PUBLIC_URL=https://domain.com
+```
+
+The internal hostname must resolve from Stash-VR's environment; the public hostname must resolve and have valid TLS from the client devices. The hostnames and ports may also differ.
 
 <details>
 <summary>More (click to expand)</summary>

@@ -10,6 +10,7 @@ services:
       - /path/in/host:/config
     environment:
       STASH_GRAPHQL_URL: "http://localhost:9999/graphql"
+      #STASH_PUBLIC_URL: "https://domain.com"
       #STASH_API_KEY: "xxx"
 
       ## For configurations in status page to persist a path must be provided that Stash-VR has write access to.
