@@ -3,13 +3,15 @@ package heresphere
 import (
 	"context"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"stash-vr/internal/api/heatmap"
+	"stash-vr/internal/api/internal"
 	"stash-vr/internal/config"
 	"stash-vr/internal/library"
 	"stash-vr/internal/stash"
 	"stash-vr/internal/util"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type videoDataDto struct {
@@ -26,6 +28,10 @@ type videoDataDto struct {
 	Favorites      *int          `json:"favorites,omitempty"`
 	Comments       *int          `json:"comments,omitempty"`
 	IsFavorite     *bool         `json:"isFavorite,omitempty"`
+	Projection     string        `json:"projection,omitempty"`
+	Stereo         string        `json:"stereo,omitempty"`
+	Fov            float32       `json:"fov,omitempty"`
+	Lens           string        `json:"lens,omitempty"`
 	EventServer    *string       `json:"eventServer,omitempty"`
 	Scripts        []scriptDto   `json:"scripts,omitempty"`
 	Tags           []tagDto      `json:"tags,omitempty"`
@@ -88,7 +94,7 @@ func buildVideoData(ctx context.Context, vd *library.VideoData, baseUrl string) 
 	}
 
 	if vd.SceneParts.Date != nil {
-		dto.DateReleased = vd.SceneParts.Date
+		dto.DateReleased = util.Ptr(util.NormalizeDate(*vd.SceneParts.Date))
 	}
 
 	if vd.SceneParts.Rating100 != nil {
@@ -108,6 +114,8 @@ func buildVideoData(ctx context.Context, vd *library.VideoData, baseUrl string) 
 	}
 
 	setMediaSources(vd, &dto)
+
+	set3DFormat(vd, &dto)
 
 	setScripts(vd, &dto)
 
@@ -154,6 +162,48 @@ func setScripts(vd *library.VideoData, dto *videoDataDto) {
 		Name: "Script-" + vd.Title(),
 		Url:  stash.ApiKeyed(*vd.SceneParts.Paths.Funscript),
 	})
+}
+
+func set3DFormat(vd *library.VideoData, dto *videoDataDto) {
+	for _, t := range vd.SceneParts.Tags {
+		switch {
+		case util.StrSliceEquals(t.Name, t.Aliases, internal.TagVR_DOME):
+			dto.Projection = "equirectangular"
+			dto.Stereo = "sbs"
+			continue
+		case util.StrSliceEquals(t.Name, t.Aliases, internal.TagVR_SPHERE):
+			dto.Projection = "equirectangular360"
+			dto.Stereo = "sbs"
+			continue
+		case util.StrSliceEquals(t.Name, t.Aliases, internal.TagVR_FISHEYE):
+			dto.Projection = "fisheye"
+			dto.Stereo = "sbs"
+			continue
+		case util.StrSliceEquals(t.Name, t.Aliases, internal.TagVR_MKX200):
+			dto.Projection = "fisheye"
+			dto.Stereo = "sbs"
+			dto.Lens = "MKX200"
+			dto.Fov = 200.0
+			continue
+		case util.StrSliceEquals(t.Name, t.Aliases, internal.TagVR_RF52):
+			dto.Projection = "fisheye"
+			dto.Stereo = "sbs"
+			dto.Fov = 190.0
+			continue
+		case util.StrSliceEquals(t.Name, t.Aliases, internal.TagVR_CUBEMAP):
+			dto.Projection = "cubemap"
+			dto.Stereo = "sbs"
+		case util.StrSliceEquals(t.Name, t.Aliases, internal.TagVR_EAC):
+			dto.Projection = "equiangularCubemap"
+			dto.Stereo = "sbs"
+		case util.StrSliceEquals(t.Name, t.Aliases, internal.TagVR_SBS):
+			dto.Stereo = "sbs"
+			continue
+		case util.StrSliceEquals(t.Name, t.Aliases, internal.TagVR_TB):
+			dto.Stereo = "tb"
+			continue
+		}
+	}
 }
 
 func setMediaSources(vd *library.VideoData, dto *videoDataDto) {

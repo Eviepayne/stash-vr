@@ -11,8 +11,8 @@ import (
 	"stash-vr/internal/api/web"
 	"stash-vr/internal/config"
 	"stash-vr/internal/library"
+	"stash-vr/internal/static"
 	"stash-vr/internal/util"
-	"strings"
 	"time"
 )
 
@@ -29,26 +29,13 @@ func Router(libraryService *library.Service) *chi.Mux {
 	router.Mount("/deovr", logMod("deovr", deovr.Router(libraryService)))
 
 	router.Post("/filters", logMod("filters", web.FiltersUpdateHandler()).ServeHTTP)
-
-	router.Get("/", rootHandler(libraryService))
-	router.Get("/*", logMod("static", staticHandler()).ServeHTTP)
-
 	router.Get("/cover/{videoId}", logMod("heatmap", heatmap.CoverHandler(libraryService)).ServeHTTP)
 
+	router.Get("/", web.IndexHandler(libraryService).ServeHTTP)
+
+	router.Get("/*", http.FileServerFS(static.Fs).ServeHTTP)
+
 	return router
-}
-
-func rootHandler(libraryService *library.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userAgent := r.Header.Get("User-Agent")
-
-		if strings.Contains(userAgent, "HereSphere") {
-			log.Ctx(r.Context()).Trace().Msg("Redirecting to /heresphere")
-			http.Redirect(w, r, "/heresphere", 307)
-		} else {
-			logMod("web", web.IndexHandler(libraryService)).ServeHTTP(w, r)
-		}
-	}
 }
 
 func logMod(value string, next http.Handler) http.Handler {
@@ -67,7 +54,7 @@ func requestLogger(next http.Handler) http.Handler {
 			Str("method", r.Method).
 			Str("url", url).Logger()
 
-		baseLogger.Trace().
+		baseLogger.Debug().
 			Str("proto", r.Proto).
 			Str("user_agent", r.UserAgent()).
 			Msg("Incoming request")
@@ -79,14 +66,4 @@ func requestLogger(next http.Handler) http.Handler {
 			Dur("ms", time.Since(start)).
 			Msg("Request handled")
 	})
-}
-
-func staticHandler() http.HandlerFunc {
-	filesDir := http.Dir("./web/static")
-	return func(w http.ResponseWriter, r *http.Request) {
-		rCtx := chi.RouteContext(r.Context())
-		pathPrefix := strings.TrimSuffix(rCtx.RoutePattern(), "/*")
-		fs := http.StripPrefix(pathPrefix, http.FileServer(filesDir))
-		fs.ServeHTTP(w, r)
-	}
 }
